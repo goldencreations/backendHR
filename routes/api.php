@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\MoneyRequestController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PayrollController;
 use App\Http\Controllers\Api\PdfController;
+use App\Http\Controllers\Api\RegistrationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -42,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // The employee portal's own records.
     Route::get('me/profile', [EmployeeController::class, 'me'])->name('api.me.profile');
+    Route::get('me/registration', RegistrationController::class)->name('api.me.registration');
     Route::get('me/dashboard', [DashboardController::class, 'me'])->name('api.me.dashboard');
     Route::get('me/payslips', [PayrollController::class, 'payslips'])->name('api.me.payslips');
 
