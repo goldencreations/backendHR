@@ -56,44 +56,35 @@ return new class extends Migration
             $table->index(['employee_id', 'period_year']);
         });
 
+        /*
+         * Notifications reuse Laravel's own database-notification table
+         * rather than defining a parallel one. A second table of the same
+         * name would collide with the framework's, which already backs the
+         * database channel via type / notifiable_* / data / read_at.
+         *
+         * Using it also removes the need for a separate recipients table:
+         * read_at is already per recipient, which is exactly the semantics
+         * the unread badge in the UI needs.
+         *
+         * actor_user_id and subject_* are added for the domain feed, so a
+         * notification can name who acted and deep-link to the record that
+         * triggered it.
+         */
         Schema::create('notifications', function (Blueprint $table) {
-            $table->id();
-            $table->enum('kind', [
-                'payroll',
-                'money',
-                'contract',
-                'role',
-                'department',
-                'employee',
-                'document',
-                'leave',
-                'security',
-            ]);
-            $table->string('title', 255);
-            $table->text('body')->nullable();
+            $table->uuid('id')->primary();
+            $table->string('type');
+            $table->morphs('notifiable');
+            $table->text('data');
+            $table->timestamp('read_at')->nullable();
             $table->foreignId('actor_user_id')->nullable()->constrained('users')->nullOnDelete();
-
             // Polymorphic pointer to the originating record (leave_request,
             // contract, money_request, ...) so a notification can deep-link.
             $table->string('subject_type', 191)->nullable();
             $table->unsignedBigInteger('subject_id')->nullable();
-
             $table->timestamps();
 
             $table->index(['subject_type', 'subject_id']);
-            $table->index('kind');
-        });
-
-        Schema::create('notification_recipients', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('notification_id')->constrained('notifications')->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
-            // Read state is per recipient, not per notification.
-            $table->timestamp('read_at')->nullable();
-            $table->timestamps();
-
-            $table->unique(['notification_id', 'user_id'], 'notification_recipients_unique');
-            $table->index(['user_id', 'read_at']);
+            $table->index(['notifiable_type', 'read_at'], 'notifications_unread_index');
         });
 
         Schema::create('settings', function (Blueprint $table) {
@@ -108,7 +99,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('settings');
-        Schema::dropIfExists('notification_recipients');
         Schema::dropIfExists('notifications');
         Schema::dropIfExists('goals');
         Schema::dropIfExists('attendance_records');

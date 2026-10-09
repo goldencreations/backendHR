@@ -92,8 +92,7 @@ erDiagram
     employees ||--o{ attendance_records : "logs"
 
     employees ||--o{ goals : "sets"
-    notifications ||--o{ notification_recipients : "delivers"
-    users ||--o{ notification_recipients : "receives"
+    users ||--o{ notifications : "receives"
 ```
 
 ### 2.2 Table specifications
@@ -226,11 +225,9 @@ erDiagram
 
 #### Notifications & settings
 
-**`notifications`** — `id` · `kind` ENUM (the 9 `NoticeKind` values, page.tsx:1272) · `title` · `body` · `actor_user_id` FK · `subject_type`/`subject_id` (polymorphic link to leave_request, contract, etc.) · `created_at`
+**`notifications`** — Laravel's own database-notification table, extended: `id` UUID PK · `type` · `notifiable_type`/`notifiable_id` · `data` JSON · `read_at` NULL · `actor_user_id` FK · `subject_type`/`subject_id` (polymorphic link to leave_request, contract, etc.) · timestamps
 
-**`notification_recipients`** — `id` · `notification_id` FK · `user_id` FK · `read_at` TIMESTAMP NULL · UNIQUE (`notification_id`,`user_id`)
-
-> The `read` boolean in the UI is **per-recipient**, not on the notification — `unread` (page.tsx:2094) filters by `!read && audience matches`. This is why it needs the join table.
+> **Revised during Phase 4.** The original design had a separate `notifications` + `notification_recipients` pair. That name collides with the framework's own table, which already backs the database channel — two tables of one name is not viable. Reusing Laravel's removes the need for `notification_recipients` entirely, because `read_at` is already per recipient, which is exactly the semantics the unread badge needs (`page.tsx:2094` counts `!read` per viewer). The domain `kind` (the 9 `NoticeKind` values, page.tsx:1272), title and body live inside `data`.
 
 **`settings`** — `id` · `key` UNIQUE · `value` JSON · `updated_by` FK
 > `advance_limit`, `default_annual_leave_days`, `currency`, `payroll_day`.
@@ -270,7 +267,7 @@ erDiagram
 11. payroll_runs, payslips
 12. money_requests
 13. attendance_records, goals
-14. notifications, notification_recipients
+14. notifications
 ```
 
 ### 4.2 Mock → column mapping
@@ -289,7 +286,7 @@ erDiagram
 | `profilePayslips` | 136 | `payslips` |
 | `initialMoneyRequests` | 1042 | `money_requests` |
 | `employeeDocuments` | 1164 | `employee_documents` |
-| `initialNotices` | 1290 | `notifications` + `notification_recipients` |
+| `initialNotices` | 1290 | `notifications` |
 | `reportData` | 1448 | **not persisted** — derive via aggregates |
 | `workedDays`/`goalProgress` | 1862, 1866 | `attendance_records` / `goals` |
 
