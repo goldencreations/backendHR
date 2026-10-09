@@ -78,8 +78,21 @@ class DemoDataSeeder extends Seeder
                     'hire_date' => $hired,
                     'start_date' => $hired,
                     'status' => 'active',
+                    // Set on the employee itself, not only via the
+                    // assignment: the directory and the payslip PDF read
+                    // these columns directly.
+                    'department_id' => $department->id,
+                    'job_role_id' => $role->id,
                 ]
             );
+
+            // Keep an employee who already exists in step with the seed.
+            if (! $employee->department_id || ! $employee->job_role_id) {
+                $employee->forceFill([
+                    'department_id' => $department->id,
+                    'job_role_id' => $role->id,
+                ])->save();
+            }
 
             $department->leads()->firstOrCreate(
                 ['employee_id' => $employee->id],
