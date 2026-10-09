@@ -6,19 +6,26 @@ COPY . .
 RUN composer dump-autoload --optimize --no-dev
 
 FROM php:8.3-fpm-alpine AS runtime
+# libzip/freetype/jpeg/png -dev are build-time only; their runtime libs
+# (libzip, freetype, libjpeg, libpng) are pulled in as dependencies of the
+# extension packages themselves and must survive the apk del below.
 RUN apk add --no-cache nginx supervisor \
-      sqlite sqlite-dev \
-      icu-libs icu-dev \
-      oniguruma-dev \
-      libzip-dev \
-      freetype-dev libjpeg-turbo-dev libpng-dev \
+      sqlite \
+      icu-libs \
+      oniguruma \
+      libzip \
+      freetype libjpeg-turbo libpng \
       ghostscript \
+ && apk add --no-cache --virtual .build-deps \
+      sqlite-dev icu-dev oniguruma-dev libzip-dev \
+      freetype-dev libjpeg-turbo-dev libpng-dev \
  && docker-php-ext-configure gd --with-freetype --with-jpeg \
  && docker-php-ext-install -j"$(nproc)" \
       pdo_mysql pdo_sqlite \
       bcmath intl opcache zip gd \
- && apk del sqlite-dev icu-dev oniguruma-dev libzip-dev \
-      freetype-dev libjpeg-turbo-dev libpng-dev
+ && apk del .build-deps \
+ && ldconfig \
+ && php -r 'foreach (["pdo_mysql","pdo_sqlite","gd","zip","bcmath","intl","opcache","fileinfo"] as $e) { printf("%-12s %s\n", $e, extension_loaded($e) ? "loaded" : "MISSING"); }'
 WORKDIR /var/www/html
 COPY --from=vendor /app /var/www/html
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf
