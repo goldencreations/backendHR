@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\EmployeeAvatarController;
+use App\Http\Controllers\Api\EmployeeDocumentController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -29,5 +31,35 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('throttle:6,1')
         ->name('api.auth.password');
 
-    // Phase 3 onward: documents, employees, leave, payroll.
+    /*
+    | Documents. Reads are open to any authenticated caller because the
+    | policy restricts them to HR or the owning employee; writes are HR only.
+    | Downloads stream through PHP after that check, so no upload is ever
+    | reachable by a static URL.
+    */
+    Route::get('files/{document}/download', [EmployeeDocumentController::class, 'download'])
+        ->name('api.files.download');
+
+    Route::get('documents', [EmployeeDocumentController::class, 'index'])
+        ->name('api.documents.index');
+
+    Route::get('documents/{document}', [EmployeeDocumentController::class, 'show'])
+        ->name('api.documents.show');
+
+    Route::get('employees/{employee}/avatar', [EmployeeAvatarController::class, 'show'])
+        ->name('api.employees.avatar');
+
+    Route::middleware('hr')->group(function () {
+        Route::post('documents', [EmployeeDocumentController::class, 'store'])
+            ->name('api.documents.store');
+
+        Route::post('documents/{document}/replace', [EmployeeDocumentController::class, 'replace'])
+            ->name('api.documents.replace');
+
+        Route::delete('documents/{document}', [EmployeeDocumentController::class, 'destroy'])
+            ->name('api.documents.destroy');
+
+        Route::post('employees/{employee}/avatar', [EmployeeAvatarController::class, 'store'])
+            ->name('api.employees.avatar.store');
+    });
 });

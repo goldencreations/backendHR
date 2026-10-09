@@ -30,6 +30,26 @@ return [
 
     'disks' => [
 
+        /*
+        | Employee uploads. Backed by the host directory mounted at
+        | /var/www/html/storage/app/hr-files (FILES_ROOT on the VPS).
+        |
+        | Deliberately NOT under storage/app/public: Laravel registers a
+        | storage/{path} route, so anything beneath public/ would be
+        | reachable without an authorisation check.
+        |
+        | Private with no url key, so nothing here is served over HTTP.
+        | Every read goes through GET /api/files/{id}, which confirms the
+        | caller may see the document first.
+        */
+        'hr_files' => [
+            'driver' => 'local',
+            'root' => storage_path('app/hr-files'),
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
