@@ -1,11 +1,16 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ContractController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\EmployeeAvatarController;
 use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\EmployeeDocumentController;
+use App\Http\Controllers\Api\LeaveRequestController;
+use App\Http\Controllers\Api\MoneyRequestController;
+use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\PayrollController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -37,6 +42,30 @@ Route::middleware('auth:sanctum')->group(function () {
     // The employee portal's own records.
     Route::get('me/profile', [EmployeeController::class, 'me'])->name('api.me.profile');
     Route::get('me/dashboard', [DashboardController::class, 'me'])->name('api.me.dashboard');
+    Route::get('me/payslips', [PayrollController::class, 'payslips'])->name('api.me.payslips');
+    Route::get('me/leave-balances', [LeaveRequestController::class, 'balances'])->name('api.me.leave-balances');
+
+    Route::post('leave-requests', [LeaveRequestController::class, 'store'])->name('api.leave.store');
+    Route::get('leave-requests', [LeaveRequestController::class, 'index'])->name('api.leave.index');
+    Route::get('leave-requests/{leave_request}', [LeaveRequestController::class, 'show'])->name('api.leave.show');
+    Route::delete('leave-requests/{leave_request}', [LeaveRequestController::class, 'destroy'])->name('api.leave.destroy');
+
+    Route::post('money-requests', [MoneyRequestController::class, 'store'])->name('api.money.store');
+    Route::get('money-requests', [MoneyRequestController::class, 'index'])->name('api.money.index');
+    Route::get('money-requests/{money_request}', [MoneyRequestController::class, 'show'])->name('api.money.show');
+
+    Route::get('contracts', [ContractController::class, 'index'])->name('api.contracts.index');
+    Route::get('contract-types', [ContractController::class, 'types'])->name('api.contracts.types');
+    Route::post('contracts/{contract}/respond', [ContractController::class, 'respond'])->name('api.contracts.respond');
+
+    // Payslips are readable by any authenticated caller; the controller
+    // restricts non-HR users to their own employee record.
+    Route::get('payslips', [PayrollController::class, 'payslips'])->name('api.payslips.index');
+
+    Route::get('notifications', [NotificationController::class, 'index'])->name('api.notifications.index');
+    Route::post('notifications/read-all', [NotificationController::class, 'markAllRead'])->name('api.notifications.read-all');
+    Route::post('notifications/{id}/read', [NotificationController::class, 'markRead'])->name('api.notifications.read');
+    Route::delete('notifications/{id}', [NotificationController::class, 'destroy'])->name('api.notifications.destroy');
 
     /*
     | Documents. Reads are open to any authenticated caller because the
@@ -85,5 +114,27 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('employees/{employee}/avatar', [EmployeeAvatarController::class, 'store'])
             ->name('api.employees.avatar.store');
+
+        // Leave decisions.
+        Route::post('leave-requests/{leave_request}/approve', [LeaveRequestController::class, 'approve'])->name('api.leave.approve');
+        Route::post('leave-requests/{leave_request}/decline', [LeaveRequestController::class, 'decline'])->name('api.leave.decline');
+        Route::get('leave-balances', [LeaveRequestController::class, 'balances'])->name('api.leave.balances');
+
+        // Payroll.
+        Route::get('payroll/runs', [PayrollController::class, 'runs'])->name('api.payroll.runs');
+        Route::post('payroll/runs', [PayrollController::class, 'storeRun'])->name('api.payroll.runs.store');
+        Route::get('payroll/runs/{run}', [PayrollController::class, 'showRun'])->name('api.payroll.runs.show');
+        Route::post('payroll/runs/{run}/approve', [PayrollController::class, 'approveRun'])->name('api.payroll.runs.approve');
+        Route::post('payroll/runs/{run}/pay', [PayrollController::class, 'payRun'])->name('api.payroll.runs.pay');
+
+        // Money request decisions.
+        Route::post('money-requests/{money_request}/approve', [MoneyRequestController::class, 'approve'])->name('api.money.approve');
+        Route::post('money-requests/{money_request}/decline', [MoneyRequestController::class, 'decline'])->name('api.money.decline');
+        Route::post('money-requests/{money_request}/mark-paid', [MoneyRequestController::class, 'markPaid'])->name('api.money.mark-paid');
+
+        // Contracts.
+        Route::post('contracts', [ContractController::class, 'store'])->name('api.contracts.store');
+        Route::patch('contracts/{contract}', [ContractController::class, 'update'])->name('api.contracts.update');
+        Route::post('contracts/{contract}/send-for-signature', [ContractController::class, 'sendForSignature'])->name('api.contracts.send');
     });
 });

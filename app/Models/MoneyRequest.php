@@ -35,4 +35,10 @@ class MoneyRequest extends Model
     {
         return $this->belongsTo(MoneyRequestType::class, 'money_request_type_id');
     }
+
+    /** The HR user who approved, declined or marked this request paid. */
+    public function decidedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'decided_by');
+    }
 }

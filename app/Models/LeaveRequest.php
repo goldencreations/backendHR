@@ -41,4 +41,17 @@ class LeaveRequest extends Model
     {
         return $this->belongsTo(Employee::class, 'coverage_employee_id');
     }
+
+    /**
+     * The HR user or department lead who decided or owns the request.
+     */
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approver_id');
+    }
+
+    public function decidedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approver_id');
+    }
 }
