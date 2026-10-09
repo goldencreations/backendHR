@@ -29,6 +29,23 @@ return Application::configure(basePath: dirname(__DIR__))
         // login page here, so an unauthenticated API call would throw
         // RouteNotFoundException (a 500) instead of the 401 a client needs.
         $middleware->redirectGuestsTo(fn () => null);
+
+        // The container sits behind Cloudflare and the host reverse proxy, so
+        // X-Forwarded-* is the only record of the real scheme and client.
+        // Without this, generated URLs come back as http://.
+        //
+        // Scoped to loopback and the Docker bridge rather than '*': the
+        // container's port is not published publicly, and its only legitimate
+        // client is the host proxy on that network. Trusting every address
+        // would let any caller forge X-Forwarded-For.
+        $middleware->trustProxies(
+            at: ['127.0.0.1', '172.16.0.0/12'],
+            headers: Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO
+                | Request::HEADER_X_FORWARDED_AWS_ELB,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // API clients expect JSON, never an HTML error page.
