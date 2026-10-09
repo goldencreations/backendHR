@@ -31,7 +31,6 @@ class OpenApiGenerator
 
         // Employees
         'api/employees' => ['summary' => 'List employees', 'tags' => ['Employees'], 'description' => 'Searchable on name, role and department. HR only.'],
-        'api/employees'.'' => [],
         'api/departments' => ['summary' => 'List, create departments', 'tags' => ['Organisation'], 'description' => 'Includes roles, department leads and headcount.'],
         'api/departments/{department}' => ['summary' => 'Show or update a department', 'tags' => ['Organisation']],
         'api/departments/{department}/roles' => ['summary' => 'Add roles in bulk', 'tags' => ['Organisation'], 'description' => 'Accepts an array of titles; duplicates are collapsed case-insensitively. Matches the textarea input that splits on newlines or commas.'],
@@ -108,13 +107,14 @@ class OpenApiGenerator
             }
 
             $path = '/'.ltrim($route->uri(), '/');
-            $meta = $this->metadataFor($route);
-            $secured = $meta['secured'] ?? $this->requiresAuth($route);
 
             foreach ($route->methods() as $method) {
                 if (in_array($method, ['HEAD', 'OPTIONS'], true)) {
                     continue;
                 }
+
+                $meta = $this->metadataFor($route, $method);
+                $secured = $meta['secured'] ?? $this->requiresAuth($route);
 
                 $paths[$path][strtolower($method)] = $this->operation(
                     $route,
@@ -170,20 +170,63 @@ class OpenApiGenerator
     /**
      * @return array{summary: string, tags: array<int, string>, description?: string, secured?: bool}
      */
-    private function metadataFor(Route $route): array
+    private function metadataFor(Route $route, string $method): array
     {
         $uri = $route->uri();
+
+        // A path can carry several methods with very different meanings, so a
+        // write on a path documented for a read needs its own summary.
+        $override = match (true) {
+            $uri === 'api/employees' && $method === 'POST' => [
+                'summary' => 'Create an employee',
+                'tags' => ['Employees'],
+                'description' => 'Creates the employee, their role assignment and, when a password is supplied, a working portal login, in one transaction.',
+            ],
+            $uri === 'api/employees/{employee}' && $method === 'PATCH' => [
+                'summary' => 'Update an employee',
+                'tags' => ['Employees'],
+                'description' => 'Supplying a password resets the portal login and revokes that employee\'s other sessions. Leaving both password fields blank keeps the current password.',
+            ],
+            $uri === 'api/employees/{employee}' && $method === 'DELETE' => [
+                'summary' => 'Terminate an employee',
+                'tags' => ['Employees'],
+                'description' => 'Terminates rather than deletes: payroll, contracts and documents keep their history. Their login is deactivated and its tokens revoked.',
+            ],
+            $uri === 'api/departments' && $method === 'POST' => [
+                'summary' => 'Create a department',
+                'tags' => ['Organisation'],
+            ],
+            $uri === 'api/documents' && $method === 'POST' => [
+                'summary' => 'Upload a document',
+                'tags' => ['Documents'],
+                'description' => 'Stores the file privately and records a relative path. The content type is checked against the file contents, so a renamed file is rejected.',
+            ],
+            $uri === 'api/documents/{document}' && $method === 'DELETE' => [
+                'summary' => 'Delete a document',
+                'tags' => ['Documents'],
+                'description' => 'Removes the stored file as well as the row.',
+            ],
+            $uri === 'api/contracts/{contract}/respond' => [
+                'summary' => 'Accept or decline a contract',
+                'tags' => ['Contracts'],
+                'description' => 'The owner responds from their own portal. A state change, so a POST.',
+            ],
+            default => null,
+        };
+
+        if ($override !== null) {
+            return $override;
+        }
+
         $found = self::PATHS[$uri] ?? null;
 
         if ($found !== null) {
             return $found;
         }
 
-        // GET and POST on the same path share an entry, so fall back to the
-        // method when the bare path is ambiguous.
         return [
-            'summary' => ucfirst(str_replace(['-', '_'], ' ', $route->uri())),
-            'tags' => [ucfirst(explode('/', $route->uri())[1] ?? 'Other')],
+            'summary' => ucfirst(str_replace(['-', '_'], ' ', $uri)),
+            'tags' => [ucfirst(explode('/', $uri)[1] ?? 'Other')],
         ];
     }
 
@@ -431,11 +474,18 @@ class OpenApiGenerator
 
     private function isApiRoute(Route $route): bool
     {
-        if (! str_starts_with($route->uri(), 'api/')) {
+        $uri = $route->uri();
+
+        if (! str_starts_with($uri, 'api/')) {
             return false;
         }
 
-        // Skip framework internals such as sanctum/csrf-cookie.
-        return ! str_contains($route->uri(), 'sanctum/');
+        // Skip framework internals and the documentation routes themselves,
+        // which would otherwise appear in their own document.
+        if (str_contains($uri, 'sanctum/') || str_starts_with($uri, 'api/docs')) {
+            return false;
+        }
+
+        return true;
     }
 }
