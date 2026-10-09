@@ -142,7 +142,11 @@ class ContractController extends Controller
     {
         $isOwner = (int) $contract->employee_id === (int) $request->user()->employee_id;
 
-        abort_unless($isOwner || $request->user()->isHr(), 403);
+        abort_unless(
+            $isOwner || $request->user()->isHr(),
+            403,
+            'This contract belongs to another employee.'
+        );
 
         if ($contract->status !== 'pending_signature') {
             return response()->json(['message' => 'This contract is not awaiting a signature.'], 422);
