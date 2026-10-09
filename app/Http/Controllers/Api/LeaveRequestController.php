@@ -176,7 +176,11 @@ class LeaveRequestController extends Controller
                 return [
                     'leave_type' => $type->name,
                     'leave_type_id' => $type->id,
+                    // null when no allowance has been set for this type.
+                    // Reported honestly rather than as 0, which would read
+                    // as "no entitlement" when it actually means "unset".
                     'entitled_days' => (float) $balance->entitled_days,
+                    'entitlement_configured' => $type->annual_allowance_days !== null,
                     'used_days' => (float) $balance->used_days,
                     'booked_days' => (float) $balance->booked_days,
                     'remaining_days' => $this->leave->availableOn($balance),
