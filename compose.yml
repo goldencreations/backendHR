@@ -1,0 +1,45 @@
+﻿services:
+  db:
+    image: mysql:8.4
+    container_name: hr-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hr-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "172.18.0.1:3001:8080"
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+    volumes:
+      - ./.env:/var/www/html/.env:ro
+      - api-storage:/var/www/html/storage
+      - ${FILES_ROOT}:/var/www/html/storage/app/public
+    tmpfs:
+      - /tmp
+
+volumes:
+  mysql-data:
+  api-storage:
