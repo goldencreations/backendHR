@@ -18,7 +18,8 @@ class UserFactory extends Factory
     protected static ?string $password;
 
     /**
-     * Define the model's default state.
+     * The schema has no email_verified_at column: sign-in is by email and
+     * password only, so the account state is carried by is_active.
      *
      * @return array<string, mixed>
      */
@@ -27,19 +28,31 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
+            'role' => User::ROLE_EMPLOYEE,
+            'is_active' => true,
             'remember_token' => Str::random(10),
         ];
     }
 
-    /**
-     * Indicate that the model's email address should be unverified.
-     */
-    public function unverified(): static
+    public function hrAdmin(): static
     {
         return $this->state(fn (array $attributes) => [
-            'email_verified_at' => null,
+            'role' => User::ROLE_HR_ADMIN,
+        ]);
+    }
+
+    public function hrOfficer(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => User::ROLE_HR_OFFICER,
+        ]);
+    }
+
+    public function inactive(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_active' => false,
         ]);
     }
 }

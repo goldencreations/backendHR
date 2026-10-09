@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Reference data matching the option lists in the frontend.
@@ -47,7 +48,7 @@ class ReferenceDataSeeder extends Seeder
         foreach ($documentCategories as $name) {
             DB::table('document_categories')->updateOrInsert(
                 ['name' => $name],
-                ['slug' => \Illuminate\Support\Str::slug($name), 'created_at' => $now, 'updated_at' => $now],
+                ['slug' => Str::slug($name), 'created_at' => $now, 'updated_at' => $now],
             );
         }
 
