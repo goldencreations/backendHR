@@ -57,6 +57,11 @@ class DemoDataSeeder extends Seeder
 
         $employees = [];
 
+        // Codes are allocated from whatever is free rather than counting
+        // rows, so the seeder stays re-runnable against a database that
+        // already holds employees.
+        $nextCode = (int) (Employee::max('employee_code') ? substr((string) Employee::max('employee_code'), 3) : 0) + 1;
+
         foreach ($people as [$first, $last, $departmentName, $roleTitle, $type, $salary, $hired]) {
             $department = Department::where('name', $departmentName)->firstOrFail();
             $role = JobRole::where('department_id', $department->id)->where('title', $roleTitle)->firstOrFail();
@@ -64,7 +69,7 @@ class DemoDataSeeder extends Seeder
             $employee = Employee::firstOrCreate(
                 ['email' => strtolower($first.'.'.$last).'@goldenhr.com'],
                 [
-                    'employee_code' => 'GH-'.str_pad((string) (count($employees) + 1), 4, '0', STR_PAD_LEFT),
+                    'employee_code' => 'GH-'.str_pad((string) $nextCode++, 4, '0', STR_PAD_LEFT),
                     'first_name' => $first,
                     'last_name' => $last,
                     'employment_type' => $type,
@@ -135,9 +140,11 @@ class DemoDataSeeder extends Seeder
         );
 
         if ($run->payslips()->count() === 0) {
+            $sequence = 1;
+
             foreach ($employees as [$employee]) {
                 Payslip::create([
-                    'reference' => 'PR-'.$year.'-'.str_pad((string) ($run->payslips()->count() + 1), 3, '0', STR_PAD_LEFT),
+                    'reference' => 'PR-'.$year.'-'.str_pad((string) $sequence++, 3, '0', STR_PAD_LEFT),
                     'run_id' => $run->id,
                     'employee_id' => $employee->id,
                     'period_year' => $year,
