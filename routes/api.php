@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\LeaveRequestController;
 use App\Http\Controllers\Api\MoneyRequestController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PayrollController;
+use App\Http\Controllers\Api\PdfController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -43,6 +44,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('me/profile', [EmployeeController::class, 'me'])->name('api.me.profile');
     Route::get('me/dashboard', [DashboardController::class, 'me'])->name('api.me.dashboard');
     Route::get('me/payslips', [PayrollController::class, 'payslips'])->name('api.me.payslips');
+
+    // Server-rendered PDFs. Ownership is checked per document.
+    Route::get('payslips/{payslip}/pdf', [PdfController::class, 'payslip'])->name('api.pdf.payslip');
+    Route::get('money-requests/{money_request}/receipt-pdf', [PdfController::class, 'receipt'])->name('api.pdf.receipt');
+    Route::get('contracts/{contract}/pdf', [PdfController::class, 'contract'])->name('api.pdf.contract');
+    Route::get('me/work-progress/pdf', [PdfController::class, 'workProgress'])->name('api.pdf.work-progress');
     Route::get('me/leave-balances', [LeaveRequestController::class, 'balances'])->name('api.me.leave-balances');
 
     Route::post('leave-requests', [LeaveRequestController::class, 'store'])->name('api.leave.store');
@@ -136,5 +143,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('contracts', [ContractController::class, 'store'])->name('api.contracts.store');
         Route::patch('contracts/{contract}', [ContractController::class, 'update'])->name('api.contracts.update');
         Route::post('contracts/{contract}/send-for-signature', [ContractController::class, 'sendForSignature'])->name('api.contracts.send');
+
+        Route::get('payroll/runs/{run}/pdf', [PdfController::class, 'payrollReport'])->name('api.pdf.payroll-report');
+        Route::get('employees/{employee}/record-pdf', [PdfController::class, 'employeeRecord'])->name('api.pdf.employee-record');
+        Route::get('reports/monthly', [PdfController::class, 'monthlyJson'])->name('api.reports.monthly');
+        Route::get('reports/monthly/pdf', [PdfController::class, 'monthlyReport'])->name('api.pdf.monthly-report');
     });
 });
