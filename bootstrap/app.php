@@ -22,8 +22,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         // The API is stateless and token authenticated, so the session and
-        // CSRF defaults for web routes must not apply to it.
-        $middleware->statefulApi();
+        // The API is stateless and authenticated with a bearer token, so
+        // Sanctum's stateful (cookie) mode must stay off. With it enabled,
+        // a cross-origin POST from the frontend was treated as a session
+        // request and rejected with 419 for a missing CSRF token.
 
         // Laravel's default redirect-to-login assumes a web app. There is no
         // login page here, so an unauthenticated API call would throw
