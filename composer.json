@@ -7,10 +7,12 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "darkaonline/l5-swagger": "^11.1",
         "dompdf/dompdf": "^3.1",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.3",
-        "laravel/tinker": "^2.10.1"
+        "laravel/tinker": "^2.10.1",
+        "swagger-api/swagger-ui": "^5.33"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
