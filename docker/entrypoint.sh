@@ -44,6 +44,7 @@ if [ "${DB_CONNECTION:-}" = "mysql" ]; then
 fi
 
 php artisan migrate --force
-php artisan storage:link || true
+# No storage:link: uploads are served through GET /api/files/{id} after an
+# authorisation check, never as a public symlink.
 
 exec "$@"

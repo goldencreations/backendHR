@@ -36,7 +36,11 @@ services:
     volumes:
       - ./.env:/var/www/html/.env:ro
       - api-storage:/var/www/html/storage
-      - ${FILES_ROOT}:/var/www/html/storage/app/public
+      # Uploaded documents and avatars. Deliberately NOT under
+      # storage/app/public: Laravel serves a storage/{path} route, so files
+      # there would be reachable without an authorisation check. Read access
+      # goes through GET /api/files/{id} instead.
+      - ${FILES_ROOT}:/var/www/html/storage/app/hr-files
     tmpfs:
       - /tmp
 
