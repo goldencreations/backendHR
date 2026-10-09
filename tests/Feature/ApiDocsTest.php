@@ -48,6 +48,8 @@ class ApiDocsTest extends TestCase
 
         $this->assertStringContainsString('/api/docs.json', $js);
         $this->assertStringNotContainsString('petstore.swagger.io', $js);
+        // A malformed scheme such as https:/api/docs.json breaks the viewer.
+        $this->assertDoesNotMatchRegularExpression('#https?:/(?!/)#', $js);
     }
 
     public function test_every_registered_api_route_is_documented(): void

@@ -60,9 +60,15 @@ class ApiDocsController extends Controller
             abort(404);
         }
 
+        // url() returns an absolute URL, which is right for the HTML but
+        // wrong inside the JS string when the host is absent; fall back to
+        // a site-relative path so the viewer never requests "https:/...".
+        $specUrl = url('/api/docs.json');
+        $specUrl = preg_replace('#^https?:/(?!/)#', '', $specUrl) ?? '/api/docs.json';
+
         $js = str_replace(
             'https://petstore.swagger.io/v2/swagger.json',
-            url('/api/docs.json'),
+            $specUrl,
             File::get($file)
         );
 
