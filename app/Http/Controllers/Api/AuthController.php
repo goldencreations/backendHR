@@ -8,8 +8,11 @@ use App\Http\Requests\Auth\UpdatePasswordRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
+use Laravel\Sanctum\PersonalAccessToken;
 
 /**
  * Token authentication for both portals.
@@ -42,7 +45,19 @@ class AuthController extends Controller
 
         $user->forceFill(['last_login_at' => now()])->save();
 
+        /*
+         * Browser clients authenticate with an HttpOnly session cookie.
+         * Sanctum only treats a request as stateful when the Origin matches
+         * SANCTUM_STATEFUL_DOMAINS, so the web guard is engaged for those and
+         * the session cookie is issued. Other callers (tests, scripts) keep
+         * working through the bearer token returned alongside it.
+         */
         $token = $user->createToken($request->deviceName() ?: 'api')->plainTextToken;
+
+        if (EnsureFrontendRequestsAreStateful::fromFrontend($request)) {
+            Auth::guard('web')->login($user);
+            $request->session()->regenerate();
+        }
 
         return response()->json([
             'token' => $token,
@@ -59,7 +74,23 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()?->delete();
+        // A cookie session resolves to a TransientToken, which has no delete().
+        $accessToken = $request->user()?->currentAccessToken();
+
+        if ($accessToken instanceof PersonalAccessToken) {
+            $accessToken->delete();
+        }
+
+        /*
+         * Bearer clients revoke their token above. Cookie clients have no
+         * token to delete, so the session is invalidated and its cookie
+         * cleared or the browser would stay signed in after signing out.
+         */
+        if (EnsureFrontendRequestsAreStateful::fromFrontend($request)) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
 
         return response()->json(['message' => 'Logged out.']);
     }
@@ -80,9 +111,17 @@ class AuthController extends Controller
 
         $user->forceFill(['password' => $request->new_password])->save();
 
-        // Invalidate other sessions so a password change ends any other
-        // active token, then keep the caller signed in on the current one.
-        $user->tokens()->where('id', '!=', $user->currentAccessToken()->id)->delete();
+        /*
+         * End other active sessions so a password change does not leave an
+         * old session usable, while keeping the caller signed in. Cookie
+         * clients have no token rows, so revoking tokens is skipped for them
+         * and the current session is left intact.
+         */
+        if ($request->user()->currentAccessToken() instanceof PersonalAccessToken) {
+            $user->tokens()->where('id', '!=', $request->user()->currentAccessToken()->id)->delete();
+        } else {
+            $user->tokens()->delete();
+        }
 
         return response()->json(['message' => 'Password updated.']);
     }

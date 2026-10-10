@@ -30,6 +30,12 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => false,
+    /*
+    | Required for cookie authentication. A browser only stores and resends
+    | a cookie when the server answers with Access-Control-Allow-Credentials,
+    | and the origin allowlist above must stay explicit because a wildcard is
+    | not permitted alongside credentials.
+    */
+    'supports_credentials' => true,
 
 ];

@@ -8,12 +8,17 @@ use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 /**
- * The API is stateless and bearer authenticated.
+ * Bearer token authentication still works alongside cookie sessions.
  *
- * Sanctum's stateful (cookie) mode was enabled at one point, which made a
- * cross-origin POST from the deployed frontend fail with 419 because it was
- * treated as a session request needing a CSRF token. The frontend sends only
- * an Authorization header, so that mode must stay off.
+ * The browser clients now sign in with an HttpOnly session cookie (see
+ * CookieSessionAuthTest), but non-browser callers still use a token, and the
+ * token path must not regress while cookie auth is in place.
+ *
+ * These requests carry no Origin from a stateful host, or use an origin that
+ * is not allowlisted, so Sanctum treats them as stateless and no CSRF token is
+ * required. Note that VerifyCsrfToken is bypassed under runningUnitTests(), so
+ * the absence of a 419 here is not evidence that CSRF is enforced; that is
+ * checked against a deployed environment.
  */
 class StatelessAuthTest extends TestCase
 {

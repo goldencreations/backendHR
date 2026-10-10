@@ -21,11 +21,23 @@ return Application::configure(basePath: dirname(__DIR__))
             'hr.admin' => EnsureUserIsHrAdmin::class,
         ]);
 
-        // The API is stateless and token authenticated, so the session and
-        // The API is stateless and authenticated with a bearer token, so
-        // Sanctum's stateful (cookie) mode must stay off. With it enabled,
-        // a cross-origin POST from the frontend was treated as a session
-        // request and rejected with 419 for a missing CSRF token.
+        // Sanctum's stateful (cookie) mode. With it enabled the frontend
+        // authenticates with an HttpOnly session cookie that page scripts
+        // cannot read, instead of a bearer token kept in localStorage.
+        //
+        // A previous attempt at this produced 419 responses because only the
+        // middleware was switched on: the CORS layer still refused to send
+        // credentials and the stateful domain list did not include the real
+        // frontend origins. All three are required together:
+        //
+        //   1. SANCTUM_STATEFUL_DOMAINS lists both origins (.env)
+        //   2. config/cors.php sets supports_credentials => true
+        //   3. the client sends credentials: 'include' and fetches
+        //      /sanctum/csrf-cookie before its first state-changing call
+        //
+        // Bearer tokens remain supported, so non-browser clients (tests,
+        // scripts) are unaffected.
+        $middleware->statefulApi();
 
         // Laravel's default redirect-to-login assumes a web app. There is no
         // login page here, so an unauthenticated API call would throw
