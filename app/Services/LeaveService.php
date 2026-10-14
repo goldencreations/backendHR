@@ -13,6 +13,7 @@ use App\Notifications\LeaveRequestSubmitted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
+use App\Support\DashboardCache;
 
 /**
  * Leave booking, approval and balance tracking.
@@ -77,7 +78,8 @@ class LeaveService
 
             $this->notifyApprovers($request);
 
-            return $request->fresh(['leaveType', 'employee', 'coverageEmployee', 'approver']);
+                        DashboardCache::bust();
+return $request->fresh(['leaveType', 'employee', 'coverageEmployee', 'approver']);
         });
     }
 
@@ -122,7 +124,8 @@ class LeaveService
                 Notification::send($request->employee->user, new LeaveRequestDecided($request, $status, $note));
             }
 
-            return $request->fresh(['leaveType', 'employee', 'approver']);
+                        DashboardCache::bust();
+return $request->fresh(['leaveType', 'employee', 'approver']);
         });
     }
 

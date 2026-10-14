@@ -13,6 +13,7 @@ use App\Models\Payslip;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Support\DashboardCache;
 
 /**
  * Counts and totals for the two dashboards, computed from live tables.
@@ -24,14 +25,24 @@ class DashboardController extends Controller
 {
     public function hr(Request $request): JsonResponse
     {
+        $year = (int) $request->integer('year', now()->year);
+
+        return response()->json(
+            DashboardCache::remember("hr:{$year}", 45, fn () => $this->hrPayload($request, $year))
+        );
+    }
+
+    /**
+     * The aggregate itself, cached above and retired on every write.
+     */
+    private function hrPayload(Request $request, int $year): array
+    {
         $user = $request->user();
         abort_unless($user->isHr(), 403);
 
         $activeEmployees = Employee::where('status', 'active')->count();
         $pendingLeave = LeaveRequest::where('status', 'pending')->count();
         $pendingMoney = MoneyRequest::where('status', 'pending')->count();
-
-        $year = (int) $request->integer('year', now()->year);
 
         // Net pay for the most recent payroll run.
         $latestRun = DB::table('payroll_runs')
@@ -51,7 +62,7 @@ class DashboardController extends Controller
                 ->whereBetween('end_date', [now()->toDateString(), now()->addDays(60)->toDateString()])
                 ->count();
 
-        return response()->json([
+        return [
             'generated_at' => now()->toIso8601String(),
             'year' => $year,
             'headcount' => [
@@ -109,7 +120,7 @@ class DashboardController extends Controller
                 'pending_review' => EmployeeDocument::where('status', 'pending_review')->count(),
                 'expiring_soon' => EmployeeDocument::where('status', 'expiring_soon')->count(),
             ],
-        ]);
+        ];
     }
 
     /**
@@ -128,6 +139,16 @@ class DashboardController extends Controller
 
         $year = (int) $request->integer('year', now()->year);
 
+        return response()->json(
+            DashboardCache::remember("me:{$employee->id}:{$year}", 45, fn () => $this->mePayload($employee, $year))
+        );
+    }
+
+    /**
+     * The aggregate itself, cached above and retired on every write.
+     */
+    private function mePayload(Employee $employee, int $year): array
+    {
         $payslips = Payslip::where('employee_id', $employee->id)
             ->where('period_year', $year)
             ->orderByDesc('period_month')
@@ -138,7 +159,7 @@ class DashboardController extends Controller
             ->whereYear('start_date', $year)
             ->sum('days');
 
-        return response()->json([
+        return [
             'generated_at' => now()->toIso8601String(),
             'year' => $year,
             'payslips' => [
@@ -164,6 +185,6 @@ class DashboardController extends Controller
                 ->whereIn('status', ['active', 'renewal_due'])
                 ->orderByDesc('start_date')
                 ->first()?->only(['reference', 'status', 'start_date', 'end_date']),
-        ]);
+        ];
     }
 }

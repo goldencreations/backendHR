@@ -5,11 +5,14 @@ namespace App\Services;
 use App\Models\Employee;
 use App\Models\EmployeeAssignment;
 use App\Models\JobRole;
+use App\Models\LeaveBalance;
+use App\Models\LeaveType;
 use App\Models\User;
 use App\Notifications\EmployeeRecordChanged;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
+use App\Support\DashboardCache;
 
 /**
  * Creates and updates an employee together with the records that must move
@@ -58,6 +61,11 @@ class EmployeeService
                 $this->syncCurrentAssignment($employee, (int) $data['job_role_id']);
             }
 
+            // Every employee starts with a balance row per active leave
+            // type, or the portal shows no balance and its charts render
+            // empty. Entitlement follows the type configuration.
+            $this->seedLeaveBalances($employee);
+
             // Creating the login is what makes the password in the form
             // usable; without this the employee exists but cannot sign in.
             if ($plainPassword !== null && $plainPassword !== '') {
@@ -68,8 +76,25 @@ class EmployeeService
                 $this->logAction($employee, $actor, 'created');
             }
 
-            return $employee->fresh(['department', 'jobRole', 'user']);
+                        DashboardCache::bust();
+return $employee->fresh(['department', 'jobRole', 'user']);
         });
+    }
+
+    /**
+     * One balance row per active leave type for the current year.
+     * Idempotent: existing rows are left untouched.
+     */
+    public function seedLeaveBalances(Employee $employee): void
+    {
+        $year = (int) now()->format('Y');
+
+        foreach (LeaveType::where('is_active', true)->get(['id', 'annual_allowance_days']) as $type) {
+            LeaveBalance::firstOrCreate(
+                ['employee_id' => $employee->id, 'leave_type_id' => $type->id, 'year' => $year],
+                ['entitled_days' => $type->annual_allowance_days ?? 0, 'used_days' => 0, 'booked_days' => 0],
+            );
+        }
     }
 
     /**
@@ -85,11 +110,39 @@ class EmployeeService
                 unset($data['name']);
             }
 
+            // getOriginal() is synced by save(), so the pre-edit address
+            // must be captured before the record is written.
+            $previousEmail = $employee->getOriginal('email');
+
             $roleChanged = array_key_exists('job_role_id', $data)
                 && (int) ($data['job_role_id'] ?? 0) !== (int) $employee->job_role_id;
 
             $employee->fill($data);
             $employee->save();
+
+            // The portal login mirrors the employee record: a changed email
+            // or name must move to the linked user as well, or the employee
+            // can no longer sign in with the address HR just set.
+            if ($employee->user) {
+                $userUpdates = [];
+
+                if (array_key_exists('email', $data) && is_string($data['email'])
+                    && $data['email'] !== $previousEmail) {
+                    if (User::where('email', $data['email'])->where('id', '!=', $employee->user->id)->exists()) {
+                        throw new RuntimeException('Another login already uses '.$data['email'].'.');
+                    }
+
+                    $userUpdates['email'] = $data['email'];
+                }
+
+                if (array_key_exists('first_name', $data) || array_key_exists('last_name', $data)) {
+                    $userUpdates['name'] = $employee->full_name;
+                }
+
+                if ($userUpdates !== []) {
+                    $employee->user->forceFill($userUpdates)->save();
+                }
+            }
 
             if ($roleChanged && $employee->job_role_id) {
                 $this->syncCurrentAssignment($employee->fresh(), (int) $employee->job_role_id);
@@ -99,7 +152,8 @@ class EmployeeService
                 $this->logAction($employee->fresh(), $actor, $roleChanged ? 'role_changed' : 'updated');
             }
 
-            return $employee->fresh(['department', 'jobRole', 'user']);
+                        DashboardCache::bust();
+return $employee->fresh(['department', 'jobRole', 'user']);
         });
     }
 
@@ -212,7 +266,8 @@ class EmployeeService
             $employee->user?->forceFill(['is_active' => false])->save();
             $employee->user?->tokens()->delete();
 
-            return $employee;
+                        DashboardCache::bust();
+return $employee;
         });
     }
 

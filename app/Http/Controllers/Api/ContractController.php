@@ -10,6 +10,7 @@ use App\Services\ReferenceGenerator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
+use App\Support\DashboardCache;
 
 class ContractController extends Controller
 {
@@ -106,6 +107,7 @@ class ContractController extends Controller
 
         $contract->load(['employee:id,first_name,last_name', 'contractType:id,name']);
 
+            DashboardCache::bust();
         return response()->json([
             'message' => 'Contract created.',
             'contract' => $this->payload($contract),
@@ -129,6 +131,7 @@ class ContractController extends Controller
             Notification::send($contract->employee->user, new ContractSentForSignature($contract));
         }
 
+            DashboardCache::bust();
         return response()->json([
             'message' => 'Contract sent for signature.',
             'contract' => $this->payload($contract->fresh()),
@@ -161,6 +164,8 @@ class ContractController extends Controller
             'signed_at' => $data['decision'] === 'accepted' ? now() : null,
         ]);
 
+            DashboardCache::bust();
+            DashboardCache::bust();
         return response()->json([
             'message' => 'Contract '.$contract->status.'.',
             'contract' => $this->payload($contract->fresh()),

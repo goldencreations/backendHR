@@ -11,6 +11,7 @@ use App\Notifications\MoneyRequestSubmitted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
+use App\Support\DashboardCache;
 
 class MoneyRequestService
 {
@@ -62,7 +63,8 @@ class MoneyRequestService
             Notification::send($hr, new MoneyRequestSubmitted($request));
         }
 
-        return $request->fresh(['type', 'employee']);
+                    DashboardCache::bust();
+return $request->fresh(['type', 'employee']);
     }
 
     public function approve(MoneyRequest $request, User $approver, ?string $note = null): MoneyRequest
@@ -83,7 +85,8 @@ class MoneyRequestService
 
         $request->update(['status' => 'paid', 'paid_at' => now()->toDateString()]);
 
-        return $request->fresh(['type', 'employee', 'decidedBy']);
+                    DashboardCache::bust();
+return $request->fresh(['type', 'employee', 'decidedBy']);
     }
 
     private function decide(MoneyRequest $request, string $status, User $approver, ?string $note): MoneyRequest
@@ -104,7 +107,8 @@ class MoneyRequestService
                 Notification::send($request->employee->user, new MoneyRequestDecided($request, $status, $note));
             }
 
-            return $request->fresh(['type', 'employee', 'decidedBy']);
+                        DashboardCache::bust();
+return $request->fresh(['type', 'employee', 'decidedBy']);
         });
     }
 

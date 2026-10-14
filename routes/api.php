@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\MoneyRequestController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PayrollController;
 use App\Http\Controllers\Api\PdfController;
+use App\Http\Controllers\Api\ReferenceController;
 use App\Http\Controllers\Api\RegistrationController;
 use Illuminate\Support\Facades\Route;
 
@@ -67,6 +68,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('contract-types', [ContractController::class, 'types'])->name('api.contracts.types');
     Route::post('contracts/{contract}/respond', [ContractController::class, 'respond'])->name('api.contracts.respond');
 
+    // Reference lists for portal forms. Read-only and safe for every
+    // authenticated caller: employees need these to file requests.
+    Route::get('leave-types', [ReferenceController::class, 'leaveTypes'])->name('api.leave-types');
+    Route::get('money-request-types', [ReferenceController::class, 'moneyTypes'])->name('api.money-types');
+    Route::get('document-categories', [ReferenceController::class, 'documentCategories'])->name('api.document-categories');
+
     // Payslips are readable by any authenticated caller; the controller
     // restricts non-HR users to their own employee record.
     Route::get('payslips', [PayrollController::class, 'payslips'])->name('api.payslips.index');
@@ -94,6 +101,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('employees/{employee}/avatar', [EmployeeAvatarController::class, 'show'])
         ->name('api.employees.avatar');
 
+    /*
+    | Uploads are open to every authenticated caller because the controller
+    | forces non-HR uploads onto the caller's own record; HR may attach to
+    | anyone. Employees need this for money-request receipts, which most
+    | request types require. Replace and delete stay HR-only below.
+    */
+    Route::post('documents', [EmployeeDocumentController::class, 'store'])
+        ->name('api.documents.store');
+
     Route::middleware('hr')->group(function () {
         Route::get('dashboard', [DashboardController::class, 'hr'])->name('api.dashboard.hr');
 
@@ -111,9 +127,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('departments/{department}/roles', [DepartmentController::class, 'addRoles'])->name('api.departments.roles.store');
         Route::patch('departments/{department}/roles/{role}', [DepartmentController::class, 'updateRole'])->name('api.departments.roles.update');
         Route::delete('departments/{department}/roles/{role}', [DepartmentController::class, 'destroyRole'])->name('api.departments.roles.destroy');
-
-        Route::post('documents', [EmployeeDocumentController::class, 'store'])
-            ->name('api.documents.store');
 
         Route::post('documents/{document}/replace', [EmployeeDocumentController::class, 'replace'])
             ->name('api.documents.replace');

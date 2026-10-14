@@ -39,6 +39,17 @@ return Application::configure(basePath: dirname(__DIR__))
         // scripts) are unaffected.
         $middleware->statefulApi();
 
+        /*
+         * The SPA authenticates with bearer tokens and must work even in
+         * browsers that refuse all cookies, where no CSRF cookie can exist.
+         * CSRF validation is therefore off for API routes; cross-origin
+         * safety comes from the explicit CORS origin allowlist (a hostile
+         * page cannot pass the preflight for its origin) plus Sanctum's
+         * per-request authentication. Cookie sessions still work
+         * opportunistically when the browser accepts them.
+         */
+        $middleware->validateCsrfTokens(except: ['api/*']);
+
         // Laravel's default redirect-to-login assumes a web app. There is no
         // login page here, so an unauthenticated API call would throw
         // RouteNotFoundException (a 500) instead of the 401 a client needs.

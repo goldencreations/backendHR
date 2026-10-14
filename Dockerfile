@@ -30,6 +30,7 @@ WORKDIR /var/www/html
 COPY --from=vendor /app /var/www/html
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf
 COPY docker/supervisord.conf /etc/supervisord.conf
+COPY docker/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint
 RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs \
  && chmod +x /usr/local/bin/entrypoint

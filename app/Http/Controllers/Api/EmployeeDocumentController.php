@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Gate;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
+use App\Support\DashboardCache;
 
 class EmployeeDocumentController extends Controller
 {
@@ -61,12 +62,18 @@ class EmployeeDocumentController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if (! $request->user()->isHr()) {
-            return response()->json(['message' => 'Only HR staff can attach documents.'], 403);
+        // HR may attach to any record. Anyone else may only attach to
+        // their own: money-request receipts could otherwise never be
+        // filed, since most request types require one.
+        $isHr = $request->user()->isHr();
+        $ownId = $request->user()->employee_id;
+
+        if (! $isHr && ! $ownId) {
+            return response()->json(['message' => 'No employee record is linked to this account.'], 404);
         }
 
         $validated = $request->validate([
-            'employee_id' => ['required', 'integer', 'exists:employees,id'],
+            'employee_id' => [$isHr ? 'required' : 'nullable', 'integer', 'exists:employees,id'],
             'category_id' => ['nullable', 'integer', 'exists:document_categories,id'],
             'contract_id' => ['nullable', 'integer', 'exists:contracts,id'],
             'status' => ['nullable', 'in:verified,pending_review,expiring_soon'],
@@ -82,7 +89,7 @@ class EmployeeDocumentController extends Controller
 
         $document = EmployeeDocument::create([
             'reference' => $this->references->next('employee_documents', 'DOC'),
-            'employee_id' => $validated['employee_id'],
+            'employee_id' => $isHr ? $validated['employee_id'] : (int) $ownId,
             'category_id' => $validated['category_id'] ?? null,
             'contract_id' => $validated['contract_id'] ?? null,
             'name' => $stored['original_name'],
@@ -96,6 +103,7 @@ class EmployeeDocumentController extends Controller
 
         $document->load(['employee:id,first_name,last_name', 'category:id,name,slug']);
 
+            DashboardCache::bust();
         return response()->json([
             'message' => 'Document uploaded.',
             'document' => $this->payload($document),
@@ -118,6 +126,7 @@ class EmployeeDocumentController extends Controller
         Gate::authorize('download', $document);
 
         if (! $this->files->exists($document->disk_path)) {
+            DashboardCache::bust();
             return response()->json([
                 'message' => 'The stored file is missing. Re-upload the document.',
             ], 404);
@@ -184,6 +193,7 @@ class EmployeeDocumentController extends Controller
 
         $document->load(['employee:id,first_name,last_name', 'category:id,name,slug']);
 
+            DashboardCache::bust();
         return response()->json([
             'message' => 'Document replaced.',
             'document' => $this->payload($document),
@@ -206,6 +216,8 @@ class EmployeeDocumentController extends Controller
             ] : null,
             'category' => $document->category?->name,
             'category_slug' => $document->category?->slug,
+            'category_id' => $document->category_id,
+            'contract_id' => $document->contract_id,
             'type' => $this->typeLabel($document->mime_type),
             'mime_type' => $document->mime_type,
             'size_bytes' => $document->size_bytes,

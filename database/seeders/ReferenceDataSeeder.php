@@ -52,22 +52,20 @@ class ReferenceDataSeeder extends Seeder
             );
         }
 
-        // is_paid and requires_document reflect the leave types the UI
-        // offers. Allowance days are deliberately left null pending a
-        // decision: the mock data shows 18 in some screens and 21 in others.
+        // Working-day entitlements per year. Annual matches the 21 days
+        // the portal advertises; the rest follow the company policy.
         $leaveTypes = [
-            ['name' => 'Annual leave', 'is_paid' => true, 'requires_document' => false],
-            ['name' => 'Sick leave', 'is_paid' => true, 'requires_document' => true],
-            ['name' => 'Personal leave', 'is_paid' => true, 'requires_document' => false],
-            ['name' => 'Medical leave', 'is_paid' => true, 'requires_document' => true],
-            ['name' => 'Parental leave', 'is_paid' => true, 'requires_document' => true],
+            ['name' => 'Annual leave', 'is_paid' => true, 'requires_document' => false, 'annual_allowance_days' => 21],
+            ['name' => 'Sick leave', 'is_paid' => true, 'requires_document' => true, 'annual_allowance_days' => 14],
+            ['name' => 'Personal leave', 'is_paid' => true, 'requires_document' => false, 'annual_allowance_days' => 5],
+            ['name' => 'Medical leave', 'is_paid' => true, 'requires_document' => true, 'annual_allowance_days' => 14],
+            ['name' => 'Parental leave', 'is_paid' => true, 'requires_document' => true, 'annual_allowance_days' => 60],
         ];
 
         foreach ($leaveTypes as $type) {
             DB::table('leave_types')->updateOrInsert(
                 ['name' => $type['name']],
                 $type + [
-                    'annual_allowance_days' => null,
                     'is_active' => true,
                     'created_at' => $now,
                     'updated_at' => $now,

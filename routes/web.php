@@ -4,6 +4,16 @@ use App\Http\Controllers\ApiDocsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
+    // Temporary SPA hosting: a static frontend export is copied into
+    // public/ so the API origin can serve the app until the dedicated
+    // frontend vhost is restored. Nginx serves /index.html directly;
+    // this covers the bare / path if it ever reaches PHP.
+    $spa = public_path('index.html');
+
+    if (is_file($spa)) {
+        return response()->file($spa);
+    }
+
     return view('welcome');
 });
 

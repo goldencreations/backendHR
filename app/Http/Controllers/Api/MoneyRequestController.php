@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Employee;
+use App\Models\EmployeeDocument;
 use App\Models\MoneyRequest;
 use App\Services\MoneyRequestService;
 use Illuminate\Http\JsonResponse;
@@ -73,6 +74,11 @@ class MoneyRequestController extends Controller
 
         if (! $employee) {
             return response()->json(['message' => 'No employee record is linked to this account.'], 404);
+        }
+
+        // A receipt from another person's record must not unlock a request.
+        if (! empty($data['document_id']) && ! EmployeeDocument::where('id', $data['document_id'])->where('employee_id', $employee->id)->exists()) {
+            return response()->json(['message' => 'The supporting document was not found on your record.'], 422);
         }
 
         try {

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\LeaveRequestResource;
+use App\Support\DashboardCache;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
@@ -155,6 +156,8 @@ class LeaveRequestController extends Controller
         $balance->decrement('booked_days', (float) $leaveRequest->days);
 
         $leaveRequest->delete();
+
+        DashboardCache::bust();
 
         return response()->json(['message' => 'Leave request withdrawn.']);
     }

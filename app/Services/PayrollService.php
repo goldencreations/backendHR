@@ -10,6 +10,7 @@ use App\Notifications\PayrollApproved;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
+use App\Support\DashboardCache;
 
 /**
  * Payroll runs and payslips.
@@ -68,7 +69,8 @@ class PayrollService
 
             $this->recalculate($run);
 
-            return $run->fresh();
+                        DashboardCache::bust();
+return $run->fresh();
         });
     }
 
@@ -88,7 +90,8 @@ class PayrollService
             'payslip_count' => (int) $totals->c,
         ]);
 
-        return $run;
+                    DashboardCache::bust();
+return $run;
     }
 
     public function approve(PayrollRun $run, User $approver): PayrollRun
@@ -112,7 +115,8 @@ class PayrollService
                 }
             }
 
-            return $run->fresh();
+                        DashboardCache::bust();
+return $run->fresh();
         });
     }
 
@@ -130,7 +134,8 @@ class PayrollService
                 'paid_at' => now()->toDateString(),
             ]);
 
-            return $run->fresh();
+                        DashboardCache::bust();
+return $run->fresh();
         });
     }
 }

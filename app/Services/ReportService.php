@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Contract;
+use App\Support\DashboardCache;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
@@ -27,6 +28,16 @@ class ReportService
      * @return array{rows: array<int, array<string, mixed>>, totals: array<string, mixed>}
      */
     public function monthly(int $year): array
+    {
+        return DashboardCache::remember("monthly:{$year}", 60, fn () => $this->monthlyRows($year));
+    }
+
+    /**
+     * The aggregate itself, cached above and retired on every write.
+     *
+     * @return array{rows: array<int, array<string, mixed>>, totals: array<string, mixed>}
+     */
+    private function monthlyRows(int $year): array
     {
         $rows = [];
 
