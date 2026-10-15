@@ -27,16 +27,8 @@ class MoneyRequestService
 
         $type = MoneyRequestType::findOrFail($data['money_request_type_id']);
 
-        // The cap lives in settings rather than being hard-coded, matching
-        // the advanceLimit the UI currently declares inline.
-        $limit = (int) $this->setting('advance_limit_minor', 2500000);
-
-        if ($amount > $limit) {
-            throw new RuntimeException(sprintf(
-                'The requested amount exceeds the limit of %s.',
-                number_format($limit)
-            ));
-        }
+        // No per-employee or global advance cap: any positive amount may be
+        // requested and HR decides on approval.
 
         if ($type->requires_receipt && empty($data['document_id'])) {
             throw new RuntimeException('This request type requires a supporting document.');

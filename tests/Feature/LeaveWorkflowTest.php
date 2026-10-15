@@ -284,4 +284,65 @@ class LeaveWorkflowTest extends TestCase
 
         $this->assertSame(0.0, (float) $annual['booked_days']);
     }
+
+    public function test_hr_can_delete_a_pending_request_from_the_list(): void
+    {
+        $employee = $this->employee();
+        $type = $this->leaveType(allowance: 18);
+        $user = $this->employeeUser($employee);
+
+        $id = $this->actingAs($user)->postJson('/api/leave-requests', [
+            'leave_type_id' => $type->id,
+            'start_date' => now()->addDays(10)->toDateString(),
+            'end_date' => now()->addDays(14)->toDateString(),
+            'days' => 5,
+        ])->assertCreated()->json('leave_request.id');
+
+        $this->actingAs(User::factory()->hrAdmin()->create())
+            ->deleteJson("/api/leave-requests/{$id}")
+            ->assertOk()
+            ->assertJsonPath('message', 'Leave request withdrawn.');
+
+        $this->assertDatabaseMissing('leave_requests', ['id' => $id]);
+    }
+
+    public function test_an_approved_leave_request_cannot_be_deleted(): void
+    {
+        $employee = $this->employee();
+        $type = $this->leaveType(allowance: 18);
+        $user = $this->employeeUser($employee);
+
+        $id = $this->actingAs($user)->postJson('/api/leave-requests', [
+            'leave_type_id' => $type->id,
+            'start_date' => now()->addDays(10)->toDateString(),
+            'end_date' => now()->addDays(14)->toDateString(),
+            'days' => 5,
+        ])->assertCreated()->json('leave_request.id');
+
+        $this->actingAs(User::factory()->hrAdmin()->create())
+            ->postJson("/api/leave-requests/{$id}/approve")
+            ->assertOk();
+
+        $this->actingAs(User::factory()->hrAdmin()->create())
+            ->deleteJson("/api/leave-requests/{$id}")
+            ->assertStatus(422);
+    }
+
+    public function test_an_employee_cannot_delete_another_employees_request(): void
+    {
+        $mine = $this->employee(Department::create(['name' => 'Design']));
+        $theirs = $this->employee(Department::create(['name' => 'Engineering']));
+        $type = $this->leaveType(allowance: 18);
+
+        $id = $this->actingAs($this->employeeUser($theirs))->postJson('/api/leave-requests', [
+            'leave_type_id' => $type->id,
+            'start_date' => now()->addDays(10)->toDateString(),
+            'end_date' => now()->addDays(14)->toDateString(),
+            'days' => 5,
+        ])->assertCreated()->json('leave_request.id');
+
+        $this->actingAs($this->employeeUser($mine))
+            ->deleteJson("/api/leave-requests/{$id}")
+            ->assertStatus(403);
+    }
 }

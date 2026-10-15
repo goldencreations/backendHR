@@ -15,4 +15,14 @@ class MoneyRequestPolicy
 
         return (int) $moneyRequest->employee_id === (int) $user->employee_id;
     }
+
+    public function delete(User $user, MoneyRequest $moneyRequest): bool
+    {
+        if ($user->isHr()) {
+            return true;
+        }
+
+        return (int) $moneyRequest->employee_id === (int) $user->employee_id
+            && $moneyRequest->status === 'pending';
+    }
 }

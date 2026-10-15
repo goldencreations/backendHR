@@ -50,6 +50,12 @@ class UpdateEmployeeRequest extends FormRequest
             'currency' => ['nullable', 'string', 'size:3'],
             'status' => ['sometimes', Rule::in(['active', 'on_leave', 'suspended', 'terminated'])],
 
+            // Primary salary account. Only touched when at least one of
+            // these keys is present, so older clients never wipe it.
+            'bank_name' => ['nullable', 'string', 'max:120'],
+            'account_name' => ['nullable', 'string', 'max:191'],
+            'account_number' => ['nullable', 'string', 'max:64'],
+
             // Optional reset. Blank on both fields keeps the current
             // password, as the form states.
             'password' => ['nullable', 'confirmed', Password::min(8)],

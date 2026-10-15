@@ -46,6 +46,7 @@ class EmployeeResource extends JsonResource
             'hire_date' => $this->hire_date?->toDateString(),
             'start_date' => $this->start_date?->toDateString(),
             'has_login' => $this->user_id !== null,
+            'last_login_at' => $this->whenLoaded('user', fn () => $this->user?->last_login_at?->toIso8601String()),
             'avatar_url' => $this->profile_image_path
                 ? route('api.employees.avatar', ['employee' => $this->id])
                 : null,
@@ -65,6 +66,11 @@ class EmployeeResource extends JsonResource
             'emergency_contact_phone' => $this->emergency_contact_phone,
             'base_salary_minor' => $this->base_salary_minor,
             'currency' => $this->currency,
+            'bank_account' => $this->whenLoaded('primaryBankAccount', fn () => $this->primaryBankAccount ? [
+                'bank_name' => $this->primaryBankAccount->bank_name,
+                'account_name' => $this->primaryBankAccount->account_name,
+                'account_number' => $this->primaryBankAccount->account_number,
+            ] : null),
             'termination_date' => $this->termination_date?->toDateString(),
             'current_assignment' => $this->currentAssignment() ? [
                 'job_role_id' => $this->currentAssignment()->job_role_id,

@@ -63,6 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('money-requests', [MoneyRequestController::class, 'store'])->name('api.money.store');
     Route::get('money-requests', [MoneyRequestController::class, 'index'])->name('api.money.index');
     Route::get('money-requests/{money_request}', [MoneyRequestController::class, 'show'])->name('api.money.show');
+    Route::delete('money-requests/{money_request}', [MoneyRequestController::class, 'destroy'])->name('api.money.destroy');
 
     Route::get('contracts', [ContractController::class, 'index'])->name('api.contracts.index');
     Route::get('contract-types', [ContractController::class, 'types'])->name('api.contracts.types');
@@ -148,6 +149,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('payroll/runs/{run}', [PayrollController::class, 'showRun'])->name('api.payroll.runs.show');
         Route::post('payroll/runs/{run}/approve', [PayrollController::class, 'approveRun'])->name('api.payroll.runs.approve');
         Route::post('payroll/runs/{run}/pay', [PayrollController::class, 'payRun'])->name('api.payroll.runs.pay');
+        Route::delete('payroll/runs/{run}', [PayrollController::class, 'destroyRun'])->name('api.payroll.runs.destroy');
 
         // Money request decisions.
         Route::post('money-requests/{money_request}/approve', [MoneyRequestController::class, 'approve'])->name('api.money.approve');
@@ -157,6 +159,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Contracts.
         Route::post('contracts', [ContractController::class, 'store'])->name('api.contracts.store');
         Route::patch('contracts/{contract}', [ContractController::class, 'update'])->name('api.contracts.update');
+        Route::delete('contracts/{contract}', [ContractController::class, 'destroy'])->name('api.contracts.destroy');
         Route::post('contracts/{contract}/send-for-signature', [ContractController::class, 'sendForSignature'])->name('api.contracts.send');
 
         Route::get('payroll/runs/{run}/pdf', [PdfController::class, 'payrollReport'])->name('api.pdf.payroll-report');

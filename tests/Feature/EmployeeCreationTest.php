@@ -324,8 +324,7 @@ class EmployeeCreationTest extends TestCase
             ->assertStatus(422);
     }
 
-    public function test_the_employee_self_endpoint_hides_salary(): void
-    {
+    public function test_the_employee_self_endpoint_hides_salary(): void {
         [$department, $role] = $this->departmentWithRole();
         $hr = $this->hr();
 
@@ -355,5 +354,59 @@ class EmployeeCreationTest extends TestCase
         $this->assertArrayNotHasKey('currency', $payload);
         $this->assertSame('People Operations', $payload['salary_managed_by']);
         $this->assertSame('Design', $payload['department']);
+    }
+
+    /**
+     * Payment details ride on the same employee endpoints: stored as the
+     * primary bank account, returned on the payload, and editable later
+     * for employees created before this existed.
+     */
+    public function test_payment_details_are_stored_and_editable(): void
+    {
+        [$department, $role] = $this->departmentWithRole();
+        $hr = $this->hr();
+
+        $employeeId = $this->actingAs($hr)->postJson('/api/employees', [
+            'name' => 'Zawadi Juma',
+            'email' => 'zawadi@goldenhr.com',
+            'department_id' => $department->id,
+            'job_role_id' => $role->id,
+            'employment_type' => 'full_time',
+            'base_salary_minor' => 2500000,
+            'bank_name' => 'CRDB',
+            'account_name' => 'Zawadi Juma',
+            'account_number' => '0150000000000',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('employee.bank_account.bank_name', 'CRDB')
+            ->assertJsonPath('employee.bank_account.account_name', 'Zawadi Juma')
+            ->assertJsonPath('employee.bank_account.account_number', '0150000000000')
+            ->json('employee.id');
+
+        $this->assertDatabaseHas('bank_accounts', [
+            'employee_id' => $employeeId,
+            'bank_name' => 'CRDB',
+            'account_name' => 'Zawadi Juma',
+            'account_number' => '0150000000000',
+            'type' => 'bank',
+            'is_primary' => true,
+        ]);
+
+        // Existing employees (created without details) gain them via edit.
+        $this->actingAs($hr)->patchJson("/api/employees/{$employeeId}", [
+            'bank_name' => 'NMB',
+            'account_number' => '22310000000',
+        ])
+            ->assertOk()
+            ->assertJsonPath('employee.bank_account.bank_name', 'NMB')
+            ->assertJsonPath('employee.bank_account.account_number', '22310000000');
+
+        // Still exactly one primary account, not a duplicate row.
+        $this->assertSame(1, DB::table('bank_accounts')->where('employee_id', $employeeId)->where('is_primary', true)->count());
+
+        // Updates that omit bank keys leave the account untouched.
+        $this->actingAs($hr)->patchJson("/api/employees/{$employeeId}", [
+            'phone' => '+255 700 000 001',
+        ])->assertOk()->assertJsonPath('employee.bank_account.bank_name', 'NMB');
     }
 }

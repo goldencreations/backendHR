@@ -21,7 +21,7 @@ class EmployeeController extends Controller
         $this->authorizeHr($request);
 
         $query = Employee::query()
-            ->with(['department:id,name', 'jobRole:id,title,level'])
+            ->with(['department:id,name', 'jobRole:id,title,level', 'primaryBankAccount'])
             ->orderBy('first_name')
             ->orderBy('last_name');
 
@@ -95,7 +95,7 @@ class EmployeeController extends Controller
     {
         $this->authorizeHr($request);
 
-        $employee->load(['department:id,name', 'jobRole:id,title,level', 'assignments.jobRole:id,title,level'])
+        $employee->load(['department:id,name', 'jobRole:id,title,level', 'assignments.jobRole:id,title,level', 'user:id,last_login_at', 'primaryBankAccount'])
             ->loadCount('documents');
 
         return response()->json([

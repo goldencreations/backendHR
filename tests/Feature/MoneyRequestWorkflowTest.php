@@ -74,10 +74,10 @@ class MoneyRequestWorkflowTest extends TestCase
     }
 
     /**
-     * The cap is read from settings rather than hard-coded, so changing it
-     * must change enforcement.
+     * No advance cap is enforced: any positive amount may be requested and
+     * HR decides on approval.
      */
-    public function test_the_limit_comes_from_settings(): void
+    public function test_no_limit_is_enforced(): void
     {
         $this->seedLimit(1000000);
 
@@ -91,8 +91,7 @@ class MoneyRequestWorkflowTest extends TestCase
             ->assertCreated();
 
         $this->actingAs($user)->postJson('/api/money-requests', array_merge($payload, ['amount_minor' => 2500000]))
-            ->assertStatus(422)
-            ->assertJsonPath('message', 'The requested amount exceeds the limit of 1,000,000.');
+            ->assertCreated();
     }
 
     public function test_a_type_requiring_a_receipt_blocks_a_request_without_one(): void
@@ -194,8 +193,7 @@ class MoneyRequestWorkflowTest extends TestCase
         $this->assertCount(1, $listed);
     }
 
-    public function test_approval_notifies_the_employee(): void
-    {
+    public function test_approval_notifies_the_employee(): void {
         $this->seedLimit();
 
         $employee = $this->employee();
@@ -216,5 +214,68 @@ class MoneyRequestWorkflowTest extends TestCase
         $this->app['auth']->forgetGuards();
 
         $this->assertSame(1, $user->fresh()->unreadNotifications()->count());
+    }
+
+    public function test_hr_can_delete_a_request_from_the_list(): void
+    {
+        $employee = $this->employee();
+        $type = $this->type();
+
+        $id = $this->actingAs($this->user($employee))->postJson('/api/money-requests', [
+            'money_request_type_id' => $type->id,
+            'amount_minor' => 900000,
+        ])->assertCreated()->json('money_request.id');
+
+        $this->actingAs(User::factory()->hrAdmin()->create())
+            ->deleteJson("/api/money-requests/{$id}")
+            ->assertOk()
+            ->assertJsonPath('message', 'Money request deleted.');
+
+        $this->assertDatabaseMissing('money_requests', ['id' => $id]);
+    }
+
+    public function test_an_employee_can_delete_their_own_pending_request(): void
+    {
+        $employee = $this->employee();
+        $type = $this->type();
+        $user = $this->user($employee);
+
+        $id = $this->actingAs($user)->postJson('/api/money-requests', [
+            'money_request_type_id' => $type->id,
+            'amount_minor' => 900000,
+        ])->assertCreated()->json('money_request.id');
+
+        $this->actingAs($user)->deleteJson("/api/money-requests/{$id}")->assertOk();
+
+        $this->assertDatabaseMissing('money_requests', ['id' => $id]);
+    }
+
+    public function test_an_employee_cannot_delete_a_decided_or_foreign_request(): void
+    {
+        $mine = $this->employee();
+        $theirs = $this->employee();
+        $type = $this->type();
+
+        $theirsId = $this->actingAs($this->user($theirs))->postJson('/api/money-requests', [
+            'money_request_type_id' => $type->id,
+            'amount_minor' => 500000,
+        ])->assertCreated()->json('money_request.id');
+
+        $this->actingAs($this->user($mine))
+            ->deleteJson("/api/money-requests/{$theirsId}")
+            ->assertStatus(403);
+
+        $myId = $this->actingAs($this->user($mine))->postJson('/api/money-requests', [
+            'money_request_type_id' => $type->id,
+            'amount_minor' => 500000,
+        ])->assertCreated()->json('money_request.id');
+
+        $this->actingAs(User::factory()->hrAdmin()->create())
+            ->postJson("/api/money-requests/{$myId}/approve")
+            ->assertOk();
+
+        $this->actingAs($this->user($mine))
+            ->deleteJson("/api/money-requests/{$myId}")
+            ->assertStatus(403);
     }
 }

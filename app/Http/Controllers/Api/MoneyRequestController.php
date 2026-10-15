@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\MoneyRequest;
 use App\Services\MoneyRequestService;
+use App\Support\DashboardCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,7 @@ class MoneyRequestController extends Controller
             'meta' => [
                 'current_page' => $requests->currentPage(),
                 'total' => $requests->total(),
-                'limit_minor' => (int) (json_decode((string) DB::table('settings')->where('key', 'advance_limit_minor')->value('value'), true) ?? 2500000),
+                'limit_minor' => null,
                 'counts' => MoneyRequest::selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status'),
             ],
         ]);
@@ -100,6 +101,17 @@ class MoneyRequestController extends Controller
         $moneyRequest->load(['employee:id,first_name,last_name', 'type:id,name', 'decidedBy:id,name']);
 
         return response()->json(['money_request' => $this->payload($moneyRequest)]);
+    }
+
+    public function destroy(Request $request, MoneyRequest $moneyRequest): JsonResponse
+    {
+        Gate::authorize('delete', $moneyRequest);
+
+        $moneyRequest->delete();
+
+        DashboardCache::bust();
+
+        return response()->json(['message' => 'Money request deleted.']);
     }
 
     public function approve(Request $request, MoneyRequest $moneyRequest): JsonResponse

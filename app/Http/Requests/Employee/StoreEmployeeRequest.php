@@ -45,6 +45,12 @@ class StoreEmployeeRequest extends FormRequest
             'base_salary_minor' => ['required', 'integer', 'min:0', 'max:9999999999'],
             'currency' => ['nullable', 'string', 'size:3'],
 
+            // Primary salary account. Stored on bank_accounts (is_primary),
+            // so existing employees simply have none until HR adds one.
+            'bank_name' => ['nullable', 'string', 'max:120'],
+            'account_name' => ['nullable', 'string', 'max:191'],
+            'account_number' => ['nullable', 'string', 'max:64'],
+
             // Supplying a password creates the portal login, which is what
             // makes the account usable straight away.
             'password' => ['nullable', 'confirmed', Password::min(8)],

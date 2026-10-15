@@ -66,6 +66,10 @@ class EmployeeService
             // empty. Entitlement follows the type configuration.
             $this->seedLeaveBalances($employee);
 
+            if (trim((string) ($data['bank_name'] ?? '') . ($data['account_name'] ?? '') . ($data['account_number'] ?? '')) !== '') {
+                $this->syncPrimaryBankAccount($employee, $data);
+            }
+
             // Creating the login is what makes the password in the form
             // usable; without this the employee exists but cannot sign in.
             if ($plainPassword !== null && $plainPassword !== '') {
@@ -77,7 +81,7 @@ class EmployeeService
             }
 
                         DashboardCache::bust();
-return $employee->fresh(['department', 'jobRole', 'user']);
+return $employee->fresh(['department', 'jobRole', 'user', 'primaryBankAccount']);
         });
     }
 
@@ -117,8 +121,15 @@ return $employee->fresh(['department', 'jobRole', 'user']);
             $roleChanged = array_key_exists('job_role_id', $data)
                 && (int) ($data['job_role_id'] ?? 0) !== (int) $employee->job_role_id;
 
+            $bank = array_intersect_key($data, array_flip(['bank_name', 'account_name', 'account_number']));
+            unset($data['bank_name'], $data['account_name'], $data['account_number']);
+
             $employee->fill($data);
             $employee->save();
+
+            if ($bank !== []) {
+                $this->syncPrimaryBankAccount($employee->fresh(), $bank);
+            }
 
             // The portal login mirrors the employee record: a changed email
             // or name must move to the linked user as well, or the employee
@@ -153,8 +164,42 @@ return $employee->fresh(['department', 'jobRole', 'user']);
             }
 
                         DashboardCache::bust();
-return $employee->fresh(['department', 'jobRole', 'user']);
+return $employee->fresh(['department', 'jobRole', 'user', 'primaryBankAccount']);
         });
+    }
+
+    /**
+     * Creates or updates the employee's primary salary account.
+     *
+     * Called on create only when details were supplied, and on update only
+     * when at least one bank key is present in the payload. An empty
+     * account name falls back to the employee's own name, which is what the
+     * form pre-fills. Supplying all three empty clears the stored account.
+     *
+     * @param  array<string, mixed>  $bank
+     */
+    private function syncPrimaryBankAccount(Employee $employee, array $bank): void
+    {
+        $bankName = trim((string) ($bank['bank_name'] ?? ''));
+        $accountNumber = trim((string) ($bank['account_number'] ?? ''));
+        $accountName = trim((string) ($bank['account_name'] ?? ''));
+
+        if ($bankName === '' && $accountNumber === '' && $accountName === '') {
+            $employee->bankAccounts()->where('is_primary', true)->delete();
+
+            return;
+        }
+
+        $employee->bankAccounts()->updateOrCreate(
+            ['is_primary' => true],
+            [
+                'type' => 'bank',
+                'bank_name' => $bankName !== '' ? $bankName : null,
+                'account_number' => $accountNumber !== '' ? $accountNumber : null,
+                'account_name' => $accountName !== '' ? $accountName : $employee->full_name,
+                'is_primary' => true,
+            ],
+        );
     }
 
     /**
